@@ -7,10 +7,12 @@ https://github.com/apeatling/ollama-voice-mac/assets/1464705/996abeb7-7e99-451b-
 ---
 
 ## 安装与运行  
-### 0. 在mac上安装python的虚拟环境
+### 0. 在mac上安装python的虚拟环境 python版本：3.11
+```bash
 python3.11 -m venv myenv_311
 source myenv_311/bin/activate
 deactivate
+```
 
 ### 1. 安装 Ollama  
 在 Mac 上安装 [Ollama](https://ollama.ai)。  
@@ -56,10 +58,11 @@ python assistant.py
 
 
 ### 10. 中间使用的要点：
+```yaml
 语音识别：使用 Whisper 模型进行本地语音识别，完全离线运行。
 自然语言处理：使用 Ollama 平台运行 Mistral 7b 模型，实现高效的本地大语言模型推理，无需联网。
 文本转语音（TTS）：基于 pyttsx3 实现的离线文本语音合成功能，支持多种语言和语音优化。但是 pyttsx3 太机械了 增加了edge-tts
-
+```  
 
 ---
 
