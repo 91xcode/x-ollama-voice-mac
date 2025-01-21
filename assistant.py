@@ -45,7 +45,10 @@ class Assistant:
     def __init__(self):
         logging.info("Initializing Assistant")
         self.config = self.init_config()
-
+        
+        # 预初始化 pygame mixer，避免每次语音播放时的初始化开销
+        pygame.mixer.init()
+        
         programIcon = pygame.image.load('assistant.png')
 
         self.clock = pygame.time.Clock()
@@ -271,30 +274,32 @@ class Assistant:
             logging.info(f"Using edge-tts with voice: {self.edge_voice}")
             communicate = edge_tts.Communicate(text, self.edge_voice)
             
-            # 添加调试信息
-            logging.info("Starting audio generation...")
-            await communicate.save("temp_speech.mp3")
-            logging.info("Audio file generated successfully")
+            # 使用异步方式并行处理音频生成
+            audio_task = asyncio.create_task(communicate.save("temp_speech.mp3"))
+            
+            # 在音频生成的同时执行其他初始化
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+            
+            # 等待音频生成完成
+            await audio_task
             
             if not os.path.exists("temp_speech.mp3") or os.path.getsize("temp_speech.mp3") == 0:
                 raise Exception("Generated audio file is empty or does not exist")
             
-            pygame.mixer.init()
             pygame.mixer.music.load("temp_speech.mp3")
             pygame.mixer.music.play()
             
             while pygame.mixer.music.get_busy():
-                pygame.time.wait(100)
+                await asyncio.sleep(0.1)  # 使用异步等待替代 pygame.time.wait
             
-            pygame.mixer.quit()
-            
+            # 不要每次都退出 mixer，只清理文件
             if os.path.exists("temp_speech.mp3"):
                 os.remove("temp_speech.mp3")
             
         except Exception as e:
             logging.error(f"An error occurred during edge-tts speech playback: {str(e)}")
             logging.error(f"Voice being used: {self.edge_voice}")
-            # 如果 edge-tts 失败，回退到 pyttsx3
             logging.info("Falling back to pyttsx3...")
             self.tts_engine.say(text)
             self.tts_engine.runAndWait()
@@ -305,9 +310,7 @@ class Assistant:
 
         def play_speech():
             try:
-                logging.info("Starting speech playback")
-                time.sleep(0.5)  # Short delay before speaking
-                
+                # 移除不必要的延迟
                 if self.config.tts.engine == "edge-tts":
                     asyncio.run(self.edge_tts_speak(text))
                 else:  # pyttsx3
@@ -318,7 +321,8 @@ class Assistant:
             except Exception as e:
                 logging.error(f"An error occurred during speech playback: {str(e)}")
 
-        speech_thread = threading.Thread(target=play_speech)
+        # 使用守护线程，这样主程序退出时不会被阻塞
+        speech_thread = threading.Thread(target=play_speech, daemon=True)
         speech_thread.start()
 
 
