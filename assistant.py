@@ -15,6 +15,9 @@ import whisper
 import logging
 import threading
 import queue
+import asyncio
+import edge_tts
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -54,9 +57,13 @@ class Assistant:
 
         self.audio = pyaudio.PyAudio()
 
-        self.tts = pyttsx3.init("nsss");
-        self.tts.setProperty('rate', self.tts.getProperty('rate') - 20)
-
+        # Initialize TTS engines
+        self.tts_engine = pyttsx3.init()
+        self.tts_engine.setProperty('rate', self.tts_engine.getProperty('rate') - 50)
+        
+        # Set default voice for edge-tts
+        self.edge_voice = self.config.tts.edge_voice
+        
         try:
             self.audio.open(format=INPUT_FORMAT,
                             channels=INPUT_CHANNELS,
@@ -113,6 +120,10 @@ class Assistant:
         config.whisperRecognition = Inst()
         config.whisperRecognition.modelPath = configYaml["whisperRecognition"]["modelPath"]
         config.whisperRecognition.lang = configYaml["whisperRecognition"]["lang"]
+
+        config.tts = Inst()
+        config.tts.engine = configYaml["tts"]["engine"]  # 'edge-tts' or 'pyttsx3'
+        config.tts.edge_voice = configYaml["tts"]["edge_voice"]
 
         return config
 
@@ -212,7 +223,6 @@ class Assistant:
 
         return result_queue.get()
 
-
     def ask_ollama(self, prompt, responseCallback):
         logging.info(f"Asking OLLaMa with prompt: {prompt}")
         full_prompt = prompt if hasattr(self, "contextSent") else (prompt)
@@ -256,6 +266,38 @@ class Assistant:
             logging.error(f"An error occurred while asking OLLaMa: {str(e)}")
             responseCallback("Sorry, an error occurred. Please try again.")
 
+    async def edge_tts_speak(self, text):
+        try:
+            logging.info(f"Using edge-tts with voice: {self.edge_voice}")
+            communicate = edge_tts.Communicate(text, self.edge_voice)
+            
+            # 添加调试信息
+            logging.info("Starting audio generation...")
+            await communicate.save("temp_speech.mp3")
+            logging.info("Audio file generated successfully")
+            
+            if not os.path.exists("temp_speech.mp3") or os.path.getsize("temp_speech.mp3") == 0:
+                raise Exception("Generated audio file is empty or does not exist")
+            
+            pygame.mixer.init()
+            pygame.mixer.music.load("temp_speech.mp3")
+            pygame.mixer.music.play()
+            
+            while pygame.mixer.music.get_busy():
+                pygame.time.wait(100)
+            
+            pygame.mixer.quit()
+            
+            if os.path.exists("temp_speech.mp3"):
+                os.remove("temp_speech.mp3")
+            
+        except Exception as e:
+            logging.error(f"An error occurred during edge-tts speech playback: {str(e)}")
+            logging.error(f"Voice being used: {self.edge_voice}")
+            # 如果 edge-tts 失败，回退到 pyttsx3
+            logging.info("Falling back to pyttsx3...")
+            self.tts_engine.say(text)
+            self.tts_engine.runAndWait()
 
     def text_to_speech(self, text):
         logging.info(f"Converting text to speech: {text}")
@@ -263,19 +305,15 @@ class Assistant:
 
         def play_speech():
             try:
-                logging.info("Initializing TTS engine")
-                engine = pyttsx3.init()
+                logging.info("Starting speech playback")
+                time.sleep(0.5)  # Short delay before speaking
                 
-                # Adjust the speech rate (optional)
-                rate = engine.getProperty('rate')
-                engine.setProperty('rate', rate - 50)  # Decrease the rate by 50 units
-                
-                # Add a short delay before converting text to speech
-                time.sleep(0.5)  # Adjust the delay as needed
-                
-                logging.info("Converting text to speech")
-                engine.say(text)
-                engine.runAndWait()
+                if self.config.tts.engine == "edge-tts":
+                    asyncio.run(self.edge_tts_speak(text))
+                else:  # pyttsx3
+                    self.tts_engine.say(text)
+                    self.tts_engine.runAndWait()
+                    
                 logging.info("Speech playback completed")
             except Exception as e:
                 logging.error(f"An error occurred during speech playback: {str(e)}")

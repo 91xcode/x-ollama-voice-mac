@@ -1,13 +1,27 @@
-torch==2.1.2
-torchvision==0.16.2
-torchaudio==2.1.2
-pyttsx3==2.90
+# torch==2.2.0
+# torchvision==0.17.0
+# torchaudio==2.2.0
+
+# 首先指定较老的 NumPy 版本
+numpy==1.24.3
+
+# PyTorch 相关包
+torch==2.1.0
+torchvision==0.16.0
+torchaudio==2.1.0
+
+
+
+pyttsx3==2.98
 blobfile==2.1.1
 openai==1.7.0
 Wave==0.0.2
 PyAudio==0.2.14
 PyYAML==6.0.1
 pygame==2.5.2
-soundfile==0.12.1
-pyObjC==9.0.1
+soundfile>=0.10.3
+pyobjc-core==9.2
+pyobjc-framework-Cocoa==9.2
+pyobjc==9.2
 openai-whisper @ git+https://github.com/openai/whisper.git@ba3f3cd54b0e5b8ce1ab3de13e32122d0d5f98ab
+TTS==0.21.1

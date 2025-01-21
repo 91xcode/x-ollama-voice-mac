@@ -4,12 +4,29 @@ messages:
   noAudioInput: "Error: No sound input!"
 
 whisperRecognition:
-  modelPath: "whisper/base.en.pt"
-  lang: "en"
+  modelPath: "whisper/base.pt"
+  lang: "zh"
 
 ollama:
   url: "http://localhost:11434/api/generate"
   model: "mistral"
 
 conversation:
-  greeting: "Hi, how can I help you?"
+  greeting: "你好，有什么我可以帮你的吗？"
+
+tts:
+  engine: "edge-tts"  # 可选值: "edge-tts" 或 "pyttsx3"
+  edge_voice: "zh-CN-XiaoxiaoNeural"  # 中文女声，俏皮可爱
+  # 其他活泼可爱的声音选项:
+  # zh-CN-XiaoqiuNeural (中文女声，活泼开朗)
+  # zh-CN-XiaoxuanNeural (中文女声，青春活力)
+  # zh-CN-XiaoyiNeural (中文女声，温柔活泼)
+  # zh-CN-XiaozhenNeural (中文女声，自然活泼)
+  # ja-JP-AoiNeural (日语女声，青少年声线)
+  # ko-KR-SunHiNeural (韩语女声，阳光活力)
+  # zh-CN-XiaomoNeural (中文女声，俏皮可爱)
+  # zh-TW-HsiaoYuNeural (台湾女声，较年轻)
+  # zh-TW-YunJheNeural (台湾男声)
+  # en-US-AriaNeural (英语女声)
+  # en-US-GuyNeural (英语男声)
+  # ko-KR-SunHiNeural (韩语女声)
