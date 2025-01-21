@@ -50,7 +50,10 @@ brew install portaudio
 pip install -r requirements.txt
 ```  
 
-### 9. 启动助手  
+### 9. 启动助手
+```bash
+ollama serve  
+```  
 运行以下命令启动语音助手：  
 ```bash
 python assistant.py
