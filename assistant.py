@@ -242,32 +242,50 @@ class Assistant:
                                     json=jsonParam,
                                     headers=OLLAMA_REST_HEADERS,
                                     stream=True,
-                                    timeout=30)  # Increase the timeout value
+                                    timeout=30)
             response.raise_for_status()
 
             full_response = ""
             for line in response.iter_lines():
-                body = json.loads(line)
-                token = body.get('response', '')
-                full_response += token
+                if not line:
+                    continue
+                
+                try:
+                    body = json.loads(line)
+                    token = body.get('response', '')
+                    full_response += token
 
-                if 'error' in body:
-                    logging.error(f"Error from OLLaMa: {body['error']}")
-                    responseCallback("Error: " + body['error'])
-                    return
+                    if 'error' in body:
+                        logging.error(f"Error from OLLaMa: {body['error']}")
+                        responseCallback("Error: " + body['error'])
+                        return
 
-                if body.get('done', False) and 'context' in body:
-                    self.context = body['context']
-                    break
+                    if body.get('done', False) and 'context' in body:
+                        self.context = body['context']
+                        break
+                except json.JSONDecodeError as e:
+                    logging.error(f"Failed to decode JSON response: {str(e)}")
+                    continue
 
-            responseCallback(full_response.strip())
+            if full_response.strip():
+                try:
+                    responseCallback(full_response.strip())
+                except Exception as e:
+                    logging.error(f"Error in response callback: {str(e)}")
+                    self.display_message("Error processing response")
+            else:
+                logging.warning("Received empty response from OLLaMa")
+                self.display_message("Received empty response")
 
         except requests.exceptions.ReadTimeout as e:
             logging.error(f"ReadTimeout occurred while asking OLLaMa: {str(e)}")
-            responseCallback("Sorry, the request timed out. Please try again.")
+            self.display_message("Request timed out. Please try again.")
         except requests.exceptions.RequestException as e:
             logging.error(f"An error occurred while asking OLLaMa: {str(e)}")
-            responseCallback("Sorry, an error occurred. Please try again.")
+            self.display_message("Connection error. Please try again.")
+        except Exception as e:
+            logging.error(f"Unexpected error in ask_ollama: {str(e)}")
+            self.display_message("An unexpected error occurred")
 
     async def edge_tts_speak(self, text):
         try:
