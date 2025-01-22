@@ -310,18 +310,84 @@ class Assistant:
 
         def play_speech():
             try:
-                # 移除不必要的延迟
                 if self.config.tts.engine == "edge-tts":
-                    asyncio.run(self.edge_tts_speak(text))
+                    # Create temp file for visualization
+                    tempPath = './temp.wav'
+                    
+                    async def process_speech():
+                        communicate = edge_tts.Communicate(text, self.edge_voice)
+                        await communicate.save("temp_speech.mp3")
+                        
+                        # Convert mp3 to wav for visualization
+                        data, samplerate = soundfile.read("temp_speech.mp3")
+                        soundfile.write(tempPath, data, samplerate)
+                        
+                        # Play audio with visualization
+                        wf = wave.open(tempPath, 'rb')
+                        stream = self.audio.open(format=self.audio.get_format_from_width(wf.getsampwidth()),
+                                              channels=wf.getnchannels(),
+                                              rate=wf.getframerate(),
+                                              output=True)
+                        
+                        chunkSize = 1024
+                        chunk = wf.readframes(chunkSize)
+                        while chunk:
+                            stream.write(chunk)
+                            tmp = np.array(np.frombuffer(chunk, np.int16), np.float32) * (1 / 32768.0)
+                            energy_of_chunk = np.sqrt(np.mean(tmp**2))
+                            self.display_sound_energy(energy_of_chunk)
+                            chunk = wf.readframes(chunkSize)
+                            
+                        wf.close()
+                        stream.stop_stream()
+                        stream.close()
+                        
+                        # Cleanup temp files
+                        if os.path.exists("temp_speech.mp3"):
+                            os.remove("temp_speech.mp3")
+                        if os.path.exists(tempPath):
+                            os.remove(tempPath)
+                    
+                    asyncio.run(process_speech())
+                    
                 else:  # pyttsx3
-                    self.tts_engine.say(text)
+                    tempPath = './temp.wav'
+                    self.tts_engine.save_to_file(text, tempPath)
                     self.tts_engine.runAndWait()
                     
+                    # Play audio with visualization
+                    data, samplerate = soundfile.read(tempPath)
+                    soundfile.write(tempPath, data, samplerate)
+                    
+                    wf = wave.open(tempPath, 'rb')
+                    stream = self.audio.open(format=self.audio.get_format_from_width(wf.getsampwidth()),
+                                          channels=wf.getnchannels(),
+                                          rate=wf.getframerate(),
+                                          output=True)
+                    
+                    chunkSize = 1024
+                    chunk = wf.readframes(chunkSize)
+                    while chunk:
+                        stream.write(chunk)
+                        tmp = np.array(np.frombuffer(chunk, np.int16), np.float32) * (1 / 32768.0)
+                        energy_of_chunk = np.sqrt(np.mean(tmp**2))
+                        self.display_sound_energy(energy_of_chunk)
+                        chunk = wf.readframes(chunkSize)
+                        
+                    wf.close()
+                    stream.stop_stream()
+                    stream.close()
+                    
+                    if os.path.exists(tempPath):
+                        os.remove(tempPath)
+                
                 logging.info("Speech playback completed")
+                # self.display_message(text)
+                
             except Exception as e:
                 logging.error(f"An error occurred during speech playback: {str(e)}")
 
-        # 使用守护线程，这样主程序退出时不会被阻塞
+        # Use daemon thread so main program can exit
         speech_thread = threading.Thread(target=play_speech, daemon=True)
         speech_thread.start()
 
